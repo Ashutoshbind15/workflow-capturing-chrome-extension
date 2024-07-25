@@ -1,4 +1,38 @@
 import React, { useEffect, useState } from "react";
+import styled from "styled-components";
+
+const OverlayContainer = styled.div`
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 1000;
+`;
+
+const CloseButton = styled.button`
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 20px;
+  margin-left: 10px;
+  cursor: pointer;
+
+  &:hover {
+    color: #ff5f5f;
+  }
+`;
+
+const CapturingText = styled.span`
+  font-size: 16px;
+  margin-right: 10px;
+`;
 
 const Overlay = () => {
   const [isOverlay, setIsOverlay] = useState(false);
@@ -25,17 +59,19 @@ const Overlay = () => {
 
   if (isOverlay) {
     return (
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          zIndex: 9999,
-        }}
-      ></div>
+      <OverlayContainer>
+        <CapturingText>Capturing...</CapturingText>
+        <CloseButton
+          onClick={async () => {
+            await chrome.runtime.sendMessage({
+              action: "capture",
+              data: { start: false },
+            });
+          }}
+        >
+          &times;
+        </CloseButton>
+      </OverlayContainer>
     );
   } else {
     return null;
