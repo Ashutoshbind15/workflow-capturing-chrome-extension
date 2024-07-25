@@ -1,3 +1,5 @@
+import { getCurrentTokenCookie, getDomainCookies } from "../utils/auth";
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "ping") {
     sendResponse("pong");
@@ -20,6 +22,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       stopCapturing();
     }
+  } else if (message.action === "fetchClientData") {
+    clientDataFetcher()
+      .then((data) => {
+        console.log("Client data fetched: ", data);
+        sendResponse({ data });
+      })
+      .catch((error) => {
+        console.log("Error fetching client data: ", error);
+        sendResponse({ error });
+      });
+    return true;
   }
 
   return true;
@@ -55,6 +68,25 @@ function sendEventData(type, event, screenshot) {
       "Content-Type": "application/json",
     },
   });
+}
+
+async function clientDataFetcher() {
+  const tokenCookie = await getCurrentTokenCookie();
+
+  if (tokenCookie) {
+    const token = tokenCookie.value;
+
+    // send token to the backend as a cookie to /api/me endpoint to get user info
+
+    const response = await fetch("http://localhost:3000/api/me", {
+      headers: {
+        Cookie: `token=${token}`,
+      },
+    });
+
+    const data = await response.json();
+    return data.token;
+  }
 }
 
 const startCapturing = () => {

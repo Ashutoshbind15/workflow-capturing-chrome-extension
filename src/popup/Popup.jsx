@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import styled from "styled-components";
 
@@ -16,20 +16,40 @@ const Button = styled.button`
 `;
 
 function Popup() {
+  const [user, setUser] = useState(null);
+
   useEffect(() => {
     console.log("Content popup mounted");
     const helper = async () => {
       const res = await chrome.runtime.sendMessage({ action: "ping" });
+      chrome.runtime.sendMessage({ action: "fetchClientData" }, (response) => {
+        setUser(response.data.user);
+      });
       console.log(res);
     };
 
     helper();
   }, []);
 
+  if (!user) {
+    return (
+      <Button
+        onClick={() => {
+          chrome.runtime.sendMessage({ action: "login" });
+        }}
+      >
+        Sign in
+      </Button>
+    );
+  }
+
   return (
     <div>
       <h1>Popup Content</h1>
       {/* Add more content here */}
+
+      <h2>User: {user.email}</h2>
+
       <Button
         onClick={async () => {
           await chrome.runtime.sendMessage({
