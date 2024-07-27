@@ -15,12 +15,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.set({ overlay: true }).then(() => {
         console.log("Overlay set to true");
       });
-      startCapturing();
+
+      startCapturing()
+        .then((res) => {
+          console.log("Capturing started");
+        })
+        .catch((e) => {
+          console.log(e);
+        });
     } else {
       chrome.storage.local.set({ overlay: false }).then(() => {
         console.log("Overlay set to false");
       });
-      stopCapturing();
+
+      stopCapturing()
+        .then((res) => {
+          console.log("Capturing ended");
+        })
+        .catch((e) => {
+          console.log(e);
+        });
     }
   } else if (message.action === "fetchClientData") {
     clientDataFetcher()
@@ -32,7 +46,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log("Error fetching client data: ", error);
         sendResponse({ error });
       });
-    return true;
   }
 
   return true;
@@ -74,27 +87,50 @@ async function clientDataFetcher() {
   const tokenCookie = await getCurrentTokenCookie();
 
   if (tokenCookie) {
-    const token = tokenCookie.value;
-
-    // send token to the backend as a cookie to /api/me endpoint to get user info
-
-    const response = await fetch("http://localhost:3000/api/me", {
-      headers: {
-        Cookie: `token=${token}`,
-      },
-    });
+    const response = await fetch("http://localhost:3000/api/me");
 
     const data = await response.json();
     return data.token;
   }
 }
 
-const startCapturing = () => {
+const startCapturing = async () => {
+  await checkpointer("start");
   chrome.runtime.onMessage.addListener(handleMessage);
   console.log("Starting capturing");
 };
 
-const stopCapturing = () => {
+const stopCapturing = async () => {
+  const data = await checkpointer("stop");
+  const redirectid = data.wid;
+
+  // new tab with the redirect URL
+
+  const redirectUrl = `http://localhost:3000/redirect/${redirectid}`;
+  chrome.tabs.create({ url: redirectUrl });
   chrome.runtime.onMessage.removeListener(handleMessage);
   console.log("Stopping capturing");
+};
+
+const checkpointer = async (eventname) => {
+  const tokenCookie = await getCurrentTokenCookie();
+  const token = tokenCookie.value;
+  if (!token) {
+    throw new Error("No token found");
+  } else {
+    const response = await fetch(
+      "http://localhost:3000/api/capture/checkpoint",
+      {
+        method: "POST",
+        headers: {
+          Cookie: `token=${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ event: eventname }),
+      }
+    );
+
+    const data = await response.json();
+    return data;
+  }
 };

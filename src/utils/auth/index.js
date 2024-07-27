@@ -1,11 +1,19 @@
 export const getCurrentTokenCookie = async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const url = new URL(tab.url);
-  const domain = url.hostname;
+  // const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  // const url = new URL(tab.url);
+  // const domain = url.hostname;
 
-  const cookies = await getDomainCookies(domain);
+  // console.log("domain", domain);
+
+  const cookies = await getDomainCookies("localhost");
   const tokenCookie = cookies.find((cookie) => cookie.name === "token");
   return tokenCookie;
+};
+
+export const getWorkflowId = async () => {
+  const cookies = await getDomainCookies("localhost");
+  const workflowIdCookie = cookies.find((cookie) => cookie.name === "wid");
+  return workflowIdCookie;
 };
 
 export async function getDomainCookies(domain) {
