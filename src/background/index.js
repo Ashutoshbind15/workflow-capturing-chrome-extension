@@ -52,35 +52,69 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 function handleMessage(message, sender, sendResponse) {
-  if (message.type === "click") {
-    takeScreenshot((screenshot) => {
-      sendEventData(message.type, message.event, screenshot);
-    });
-  } else if (message.type === "keystrokes") {
-    takeScreenshot((screenshot) => {
-      sendEventData(message.type, message.event, screenshot);
+  if (message.type === "click" || message.type === "keystrokes") {
+    const { x, y, sx, sy } = message.data;
+
+    chrome.tabs.captureVisibleTab((screenshot) => {
+      sendEventData(message.type, message.event, screenshot, x, y, sx, sy);
     });
   }
 }
 
-function takeScreenshot(callback) {
-  chrome.tabs.captureVisibleTab(null, {}, (dataUrl) => {
-    callback(dataUrl);
-  });
+function linearTransformImage(x, y, px, py, xprime, yprime) {
+  const xscale = xprime / x;
+  const yscale = yprime / y;
+
+  const xnew = px * xscale;
+  const ynew = py * yscale;
+
+  return { x: xnew, y: ynew };
 }
 
-function sendEventData(type, event, screenshot) {
-  console.log("Event type: ", type);
-  console.log("Event: ", event);
-  console.log("Screenshot: ", screenshot);
+function sendEventData(type, event, screenshot, x, y, sx, sy) {
+  // console.log("Event type: ", type);
+  // console.log("Event: ", event);
+  // console.log("Screenshot: ", screenshot);
 
-  fetch("http://localhost:3000/api/capture", {
-    method: "POST",
-    body: JSON.stringify({ type, event, screenshot }),
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  fetch(screenshot)
+    .then((response) => response.blob())
+    .then((blob) => createImageBitmap(blob))
+    .then((imageBitmap) => {
+      // Get the dimensions from the ImageBitmap
+      const width = imageBitmap.width;
+      const height = imageBitmap.height;
+
+      // console.log(`Image dimensions: ${width}x${height}`);
+      // console.log("x:", x, "y:", y, "sx:", sx, "sy:", sy);
+
+      const { x: xnew, y: ynew } = linearTransformImage(
+        sx,
+        sy,
+        x,
+        y,
+        width,
+        height
+      );
+
+      // console.log("xnew:", xnew, "ynew:", ynew);
+
+      fetch("http://localhost:3000/api/capture", {
+        method: "POST",
+        body: JSON.stringify({
+          type,
+          event,
+          screenshot,
+          x: Math.round(xnew),
+          y: Math.round(ynew),
+          sx: width,
+          sy: height,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        // Use the dimensions as needed
+      });
+    });
 }
 
 async function clientDataFetcher() {
